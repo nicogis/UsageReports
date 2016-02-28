@@ -1,27 +1,27 @@
 # UsageReports
 Usage Reports ArcGIS Server
 
-Requirements
+# Requirements
 .Net Framework 4.5
 ArcGIS Server 10.3.1 or superior
 
-Description
+# Description
 Generate a csv with the following metrics: 
-- RequestCount —the number of requests received
-- RequestsFailed —the number of requests that failed
-- RequestsTimedOut —the number of requests that timed out
-- RequestMaxResponseTime —the maximum response time
-- RequestAvgResponseTime —the average response time
-- ServiceActiveInstances
+* RequestCount —the number of requests received
+* RequestsFailed —the number of requests that failed
+* RequestsTimedOut —the number of requests that timed out
+* RequestMaxResponseTime —the maximum response time
+* RequestAvgResponseTime —the average response time
+* ServiceActiveInstances
 
 This tool is useful for monitoring/tuning arcgis server services 
-You can create your batch file and schedulate the application console in Task Scheduler Windows
+You can create your batch file and schedule the application console in **Task Scheduler Windows**
 In this initial version the metrics are analyzed for all services. 
 
-For details
-http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/Create_Usage_Report/02r30000027n000000/
+For details [Create Usage]
+(http://resources.arcgis.com/en/help/arcgis-rest-api/index.html#/Create_Usage_Report/02r30000027n000000/)
 
-Syntax
+#Syntax
 Studioat.ArcGISServer.UsageReports -h
 
 -s  (required) list of servers (delimiter ';')
@@ -52,5 +52,7 @@ Studioat.ArcGISServer.UsageReports -h
 
 -t  For the ending period of the report dd-MM-yyyy-HH:mm:ss. Used when sinceType (-c) parameter is CUSTOM
 
-Sample:
+#Sample:
+```
 Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis;http://myserver.cloudapp.net/arcgis -u siteadmin;siteadmin -p myPwd1;myPwd2 -o C:\Temp\OutputUsageReports -a 60 -c LAST_MONTH -d ;
+```
