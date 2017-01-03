@@ -12,7 +12,6 @@ namespace Studioat.ArcGISServer.UsageReports
     using System.IO;
     using System.Linq;
     using System.Text;
-    using System.Web;
 
     /// <summary>
     /// Simple CSV export

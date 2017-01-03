@@ -16,6 +16,7 @@ namespace Studioat.ArcGISServer.UsageReports
     using ArcGIS.Server.Rest;
     using ArcGIS.Server.Rest.Classes;
     using CommandLine;
+    using OfficeOpenXml;
 
     /// <summary>
     /// class main
@@ -46,17 +47,17 @@ namespace Studioat.ArcGISServer.UsageReports
             /// Requests Failed
             /// </summary>
             RequestsFailed,
-            
+
             /// <summary>
             /// Requests Timed Out
             /// </summary>
             RequestsTimedOut,
-            
+
             /// <summary>
             /// Request Max Response Time
             /// </summary>
             RequestMaxResponseTime,
-            
+
             /// <summary>
             /// Request Avg Response Time
             /// </summary>
@@ -81,7 +82,12 @@ namespace Studioat.ArcGISServer.UsageReports
             /// <summary>
             /// txt file
             /// </summary>
-            txt
+            txt,
+
+            /// <summary>
+            /// Excel File
+            /// </summary>
+            xlsx
         }
 
         /// <summary>
@@ -160,7 +166,7 @@ namespace Studioat.ArcGISServer.UsageReports
 
                     pathFileNameLog = Path.ChangeExtension(Path.Combine(directoryOutput, nameFile), Enum.GetName(typeof(ExtensionFile), ExtensionFile.txt));
 
-                    string pathFileName = Path.ChangeExtension(Path.Combine(directoryOutput, nameFile), Enum.GetName(typeof(ExtensionFile), ExtensionFile.csv));
+                    string pathFileName = Path.ChangeExtension(Path.Combine(directoryOutput, nameFile), Enum.GetName(typeof(ExtensionFile), ExtensionFile.xlsx));
 
                     string[] servers = options.Servers.Select(s =>
                     {
@@ -179,8 +185,6 @@ namespace Studioat.ArcGISServer.UsageReports
 
                     long? fromUnix = null;
                     long? toUnix = null;
-
-                    string delimiter = options.Delimiter;
 
                     if (options.Since == SinceType.CUSTOM)
                     {
@@ -206,29 +210,47 @@ namespace Studioat.ArcGISServer.UsageReports
                         }
                     }
 
-                    List<Task<CsvExport>> taskList = new List<Task<CsvExport>>();
+                    List<Task<List<ReportData>>> taskList = new List<Task<List<ReportData>>>();
 
                     for (int i = 0; i < servers.Length; i++)
                     {
-                        taskList.Add(Report(servers[i], u[i], p[i], options, delimiter, fromUnix, toUnix));
+                        taskList.Add(Report(servers[i], u[i], p[i], options, fromUnix, toUnix));
                     }
 
                     await Task.WhenAll(taskList.ToArray());
 
-                    CsvExport csvExport = null;
-                    for (int i = 0; i < servers.Length; i++)
+                    List<ReportData> r = taskList.SelectMany(x => x.Result).ToList();
+
+                    FileInfo fileInfoOutput = new FileInfo(pathFileName);
+                    using (ExcelPackage pck = new ExcelPackage(fileInfoOutput))
                     {
-                        if (i == 0)
-                        {
-                            csvExport = taskList[i].Result;
-                        }
-                        else
-                        {
-                            csvExport.Append(taskList[i].Result);
-                        }
+                        //Create the worksheet
+                        ExcelWorksheet ws = pck.Workbook.Worksheets.Add(string.Format("{0:yyyy-MM-dd_HH-mm-ss}", DateTime.Now));
+
+                        var dataRange = ws.Cells["A1"].LoadFromCollection
+                            (
+                            from s in r
+                            select new { HostName = s.HostName,
+                                ServiceName = s.NameService,
+                                Time = s.Time,
+                                RequestCount = s.RequestCount,
+                                RequestsFailed = s.RequestsFailed,
+                                RequestsTimedOut = s.RequestsTimedOut,
+                                RequestMaxResponseTime = s.RequestMaxResponseTime,
+                                RequestAvgResponseTime = s.RequestAvgResponseTime,
+                                ServiceActiveInstances = s.ServiceActiveInstances
+                            }
+                            ,
+                           true, OfficeOpenXml.Table.TableStyles.Dark1);
+
+                        ws.Cells[2, 3, dataRange.End.Row, 3].Style.Numberformat.Format = "m/dd/yyyy hh:mm:ss AM/PM";
+                        
+
+                        dataRange.AutoFitColumns();
+
+                        pck.Save();
                     }
 
-                    csvExport.ExportToFile(pathFileName);
                 }
                 else
                 {
@@ -257,77 +279,89 @@ namespace Studioat.ArcGISServer.UsageReports
         /// <param name="user">user of admin</param>
         /// <param name="pwd">password of admin</param>
         /// <param name="options">object options</param>
-        /// <param name="delimiter">delimitator of csv</param>
         /// <param name="fromUnix">from of time</param>
         /// <param name="toUnix">to of time</param>
         /// <returns>csvExport object</returns>
-        private static async Task<CsvExport> Report(string url, string user, string pwd, Options options, string delimiter, long? fromUnix, long? toUnix)
+        private static async Task<List<ReportData>> Report(string url, string user, string pwd, Options options, long? fromUnix, long? toUnix)
         {
-                string urlServer = url;
-                Uri serverUri = new Uri(urlServer);
-                string host = serverUri.Host;
+            string urlServer = url;
+            Uri serverUri = new Uri(urlServer);
+            string host = serverUri.Host;
 
-                var ags = new AGSClient(url, user, pwd);
+            var ags = new AGSClient(url, user, pwd);
 
-                await ags.Authenticate();
+            await ags.Authenticate();
 
-                ////Console.Out.WriteLine("Authenticated against {0}: {1}", ags.ServerUrl, ags.IsAuthenticated);
-                ////Console.Out.WriteLine("Session expires at {0}", ags.TokenExpiration.ToLocalTime());
-                ////Console.Out.WriteLine("------------------");
+            ////Console.Out.WriteLine("Authenticated against {0}: {1}", ags.ServerUrl, ags.IsAuthenticated);
+            ////Console.Out.WriteLine("Session expires at {0}", ags.TokenExpiration.ToLocalTime());
+            ////Console.Out.WriteLine("------------------");
 
-                List<string> services = await ags.ListServices();
+            List<string> services = await ags.ListServices(options.IncludeSystemFolders);
 
-                string usageReport = Guid.NewGuid().ToString();
-                string[] metrics = Enum.GetNames(typeof(Metrics));
-                await ags.AddUsageReport(usageReport, services, options.AggregationInterval, options.Since, fromUnix, toUnix, metrics);
+            string usageReport = Guid.NewGuid().ToString();
+            string[] metrics = Enum.GetNames(typeof(Metrics));
+            await ags.AddUsageReport(usageReport, services, options, fromUnix, toUnix, metrics);
 
-                ReportResponse queryUsageReport = await ags.QueryUsageReport(usageReport);
+            ReportResponse queryUsageReport = await ags.QueryUsageReport(usageReport);
 
-                ReportData[] r1 = queryUsageReport.report.reportdata[0];
+            ArcGIS.Server.Rest.Classes.ReportData[] reportDatas = queryUsageReport.report.reportdata[0]; // one filter machine '*' so get [0]
 
-                long[] time = queryUsageReport.report.timeslices;
-                int numElement = time.Length;
+            long[] time = queryUsageReport.report.timeslices;
+            long numElement = time.LongCount();
 
-                CsvExport csv = new CsvExport();
-                csv.Delimiter = delimiter ?? csv.Delimiter;
+            string[] header = Enum.GetNames(typeof(Header));
 
-                string[] header = Enum.GetNames(typeof(Header));
+            List<ReportData> results = new List<ReportData>();
+            int cont = 0;
+            while (cont < reportDatas.LongLength)
+            {
+                string nameService = reportDatas[cont].resourceURI;
 
-                int cont = 0;
-                for (int z = 0; z < r1.Length; z += 6)
-                {
-                    string nameService = r1[cont].resourceURI;
+                long?[] requestCount = reportDatas[cont++].data.Cast<long?>().ToArray();
+                
+                long?[] requestsFailed = reportDatas[cont++].data.Cast<long?>().ToArray();
+                
+                long?[] requestsTimedOut = reportDatas[cont++].data.Cast<long?>().ToArray();
+                
+                double?[] requestMaxResponseTime = reportDatas[cont++].data.Cast<double?>().ToArray();
+                
+                double?[] requestAvgResponseTime = reportDatas[cont++].data.Cast<double?>().ToArray();
 
-                    object[] a = r1[cont].data; ////RequestCount
-                    cont++;
-                    object[] b = r1[cont].data; ////RequestsFailed
-                    cont++;
-                    object[] c = r1[cont].data; ////RequestsTimedOut
-                    cont++;
-                    object[] d = r1[cont].data; ////RequestMaxResponseTime
-                    cont++;
-                    object[] e = r1[cont].data; ////RequestAvgResponseTime
-                    cont++;
-                    object[] f = r1[cont].data; ////ServiceActiveInstances
-                    cont++;
-
-                    for (int j = 0; j < numElement; j++)
+                long?[] serviceActiveInstances = Array.ConvertAll<object, long?>(reportDatas[cont++].data, i => {
+                    
+                    if (i == null)
                     {
-                        csv.AddRow();
-                        csv[header[0]] = host;
-                        csv[header[1]] = nameService;
-                        csv[header[2]] = EncodingHelper.DateTimeFromUnixTimestampMillis(time[j]);
-                        csv[metrics[0]] = a[j];
-                        csv[metrics[1]] = b[j];
-                        csv[metrics[2]] = c[j];
-                        csv[metrics[3]] = d[j];
-                        csv[metrics[4]] = e[j];
-                        csv[metrics[5]] = f[j];
+                        return null;
                     }
+                    try
+                    {
+                        return Convert.ToInt64(i);
+                    }
+                    catch { return -1; }
+                 });
+                
+                
+                
+
+                for (long j = 0; j < numElement; j++)
+                {
+                    ReportData reportData = new ReportData();
+                    reportData.HostName = host;
+                    reportData.NameService = nameService;
+                    reportData.Time = EncodingHelper.DateTimeFromUnixTimestampMillis(time[j]);
+                    reportData.RequestCount = requestCount[j];
+                    reportData.RequestsFailed = requestsFailed[j];
+                    reportData.RequestsTimedOut = requestsTimedOut[j];
+                    reportData.RequestMaxResponseTime = requestMaxResponseTime[j];
+                    reportData.RequestAvgResponseTime = requestAvgResponseTime[j];
+                    reportData.ServiceActiveInstances = serviceActiveInstances[j];
+                    results.Add(reportData);
                 }
 
-                await ags.DeleteUsageReport(usageReport);
-                return csv;         
+            }
+
+            await ags.DeleteUsageReport(usageReport);
+            return results;
         }
-    }    
+    }
 }

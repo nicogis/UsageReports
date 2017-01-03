@@ -6,6 +6,7 @@
 using ArcGIS.Server.Rest.Classes;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Studioat.ArcGISServer.UsageReports;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -139,31 +140,28 @@ namespace ArcGIS.Server.Rest
         //}
 
 
-        public async Task<JObject> AddUsageReport(string usageReport, List<string> services, int? aggregationInterval, SinceType sinceType, long? fromUnix, long? toUnix, string[] metrics)
+        public async Task<JObject> AddUsageReport(string usageReport, List<string> services, Options options, long? fromUnix, long? toUnix, string[] metrics)
         {
-            
             Uri endpoint = new Uri(ServerUrl, "usagereports/add");
 
             UsageReport r = new UsageReport();
             r.reportname = usageReport;
-            r.since = sinceType;
+            r.since = options.Since;
 
-            if (sinceType == SinceType.CUSTOM)
+            if (options.Since == SinceType.CUSTOM)
             {
                 r.from = fromUnix.Value;
                 r.to = toUnix.Value;
             }
 
-            if (aggregationInterval.HasValue)
+            if (options.AggregationInterval.HasValue)
             {
-                r.aggregationInterval = aggregationInterval.Value;
+                r.aggregationInterval = options.AggregationInterval.Value;
             }
-
-
             
             Query q = new Query();
             q.metrics = metrics;
-            string[] resourceURIs = services.Select(c => { c += "services/" + c; return c;}).ToArray();
+            string[] resourceURIs = services.Select(c => { c = "services/" + c; return c;}).ToArray();
             q.resourceURIs = resourceURIs;
             r.queries = new Query[] { q };
 
@@ -205,16 +203,12 @@ namespace ArcGIS.Server.Rest
                 JObject x = await GetStringAsync(endpoint, null);
 
                 JArray a = (JArray)x.SelectToken("services");
-               
-
+          
                 foreach (JObject obj in a)
                 {
                     Service s = obj.ToObject<Service>();
                     listService.Add(string.Format("{0}/{1}.{2}", s.folderName, s.serviceName, s.type));
-                }
-
-
-                
+                }      
             }
 
             return listService;

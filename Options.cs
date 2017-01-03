@@ -14,7 +14,7 @@ namespace Studioat.ArcGISServer.UsageReports
     /// <summary>
     /// class args parameter
     /// </summary>
-    internal class Options
+    public class Options
     {
         /// <summary>
         /// Gets or sets servers
@@ -89,11 +89,21 @@ namespace Studioat.ArcGISServer.UsageReports
         /// <summary>
         /// Gets or sets delimiter
         /// </summary>
-        [Option('d', "delimiter", Required = false, MutuallyExclusiveSet = "usageReports", HelpText = "Delimiter character (csv)")]
-        public string Delimiter
-        { 
-            get; 
-            set; 
+        //[Option('d', "delimiter", Required = false, DefaultValue = ";", MutuallyExclusiveSet = "usageReports", HelpText = "Delimiter character (csv)")]
+        //public string Delimiter
+        //{ 
+        //    get; 
+        //    set; 
+        //}
+
+        /// <summary>
+        /// Gets or sets include system folders
+        /// </summary>
+        [Option('i', "includeSystemFolders", Required = false, DefaultValue = false, MutuallyExclusiveSet = "usageReports", HelpText = "Include System Folders")]
+        public bool IncludeSystemFolders
+        {
+            get;
+            set;
         }
 
         /// <summary>
