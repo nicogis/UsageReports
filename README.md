@@ -1,7 +1,7 @@
 # Usage Reports ArcGIS Server
 
 ## Requirements
-.Net Framework 4.5
+.Net Framework 4.6.1
 ArcGIS Server 10.5.0 or superior
 
 ## Description
