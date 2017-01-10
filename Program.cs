@@ -64,9 +64,14 @@ namespace Studioat.ArcGISServer.UsageReports
             RequestAvgResponseTime,
 
             /// <summary>
+            /// Service Running Instances Max
+            /// </summary>
+            ServiceRunningInstancesMax
+
+            /// <summary>
             /// Service Active Instances
             /// </summary>
-            ServiceActiveInstances
+            ///ServiceActiveInstances -> help wrong
         }
 
         /// <summary>
@@ -238,7 +243,7 @@ namespace Studioat.ArcGISServer.UsageReports
                                 RequestsTimedOut = s.RequestsTimedOut,
                                 RequestMaxResponseTime = s.RequestMaxResponseTime,
                                 RequestAvgResponseTime = s.RequestAvgResponseTime,
-                                ServiceActiveInstances = s.ServiceActiveInstances
+                                ServiceRunningInstancesMax = s.ServiceRunningInstancesMax
                             }
                             ,
                            true, OfficeOpenXml.Table.TableStyles.Dark1);
@@ -327,22 +332,8 @@ namespace Studioat.ArcGISServer.UsageReports
                 
                 double?[] requestAvgResponseTime = reportDatas[cont++].data.Cast<double?>().ToArray();
 
-                long?[] serviceActiveInstances = Array.ConvertAll<object, long?>(reportDatas[cont++].data, i => {
-                    
-                    if (i == null)
-                    {
-                        return null;
-                    }
-                    try
-                    {
-                        return Convert.ToInt64(i);
-                    }
-                    catch { return -1; }
-                 });
+                long?[] serviceRunningInstancesMax = reportDatas[cont++].data.Cast<long?>().ToArray();
                 
-                
-                
-
                 for (long j = 0; j < numElement; j++)
                 {
                     ReportData reportData = new ReportData();
@@ -354,7 +345,7 @@ namespace Studioat.ArcGISServer.UsageReports
                     reportData.RequestsTimedOut = requestsTimedOut[j];
                     reportData.RequestMaxResponseTime = requestMaxResponseTime[j];
                     reportData.RequestAvgResponseTime = requestAvgResponseTime[j];
-                    reportData.ServiceActiveInstances = serviceActiveInstances[j];
+                    reportData.ServiceRunningInstancesMax = serviceRunningInstancesMax[j];
                     results.Add(reportData);
                 }
 

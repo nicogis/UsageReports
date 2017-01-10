@@ -30,6 +30,6 @@
         public double? RequestAvgResponseTime;
 
         
-        public long? ServiceActiveInstances;
+        public long? ServiceRunningInstancesMax;
     }
 }
