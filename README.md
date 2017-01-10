@@ -59,3 +59,5 @@ Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis;http://mys
 //two sites, last month with interval 60 minutes
 Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis;http://myserver.cloudapp.net/arcgis -u siteadmin;siteadmin -p myPwd1;myPwd2 -o C:\Temp\OutputUsageReports -a 60 -c LAST_MONTH
 ```
+![Sheet](images/sheet.png)
+

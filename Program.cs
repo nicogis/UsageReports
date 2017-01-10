@@ -17,6 +17,7 @@ namespace Studioat.ArcGISServer.UsageReports
     using ArcGIS.Server.Rest.Classes;
     using CommandLine;
     using OfficeOpenXml;
+    using Newtonsoft.Json.Linq;
 
     /// <summary>
     /// class main
@@ -64,16 +65,18 @@ namespace Studioat.ArcGISServer.UsageReports
             RequestAvgResponseTime,
 
             /// <summary>
-            /// Service Running Instances Max
-            /// </summary>
-            ServiceRunningInstancesMax
-
-            /// <summary>
             /// Service Active Instances
             /// </summary>
             ///ServiceActiveInstances -> help wrong
         }
 
+        private enum Metrics2
+        {
+            /// <summary>
+            /// Service Running Instances Max (if this metric is with metrics give data wrong)
+            /// </summary>
+            ServiceRunningInstancesMax
+        }
         /// <summary>
         /// extension dei file
         /// </summary>
@@ -122,10 +125,10 @@ namespace Studioat.ArcGISServer.UsageReports
         /// <param name="args">list of arguments from console</param>
         public static void Main(string[] args)
         {
-            AsyncPump.Run(async delegate
+            Task.Run(async () =>
             {
                 await Program.DoWork(args);
-            });
+            }).Wait();
         }
 
         /// <summary>
@@ -303,36 +306,47 @@ namespace Studioat.ArcGISServer.UsageReports
 
             List<string> services = await ags.ListServices(options.IncludeSystemFolders);
 
-            string usageReport = Guid.NewGuid().ToString();
+            string usageReport1 = Guid.NewGuid().ToString();
             string[] metrics = Enum.GetNames(typeof(Metrics));
-            await ags.AddUsageReport(usageReport, services, options, fromUnix, toUnix, metrics);
+            Task<JObject> addUsageReport1 = ags.AddUsageReport(usageReport1, services, options, fromUnix, toUnix, metrics);
 
-            ReportResponse queryUsageReport = await ags.QueryUsageReport(usageReport);
+            string usageReport2 = Guid.NewGuid().ToString();
+            string[] metrics2 = Enum.GetNames(typeof(Metrics2));
+            Task<JObject> addUsageReport2 = ags.AddUsageReport(usageReport2, services, options, fromUnix, toUnix, metrics2);
 
-            ArcGIS.Server.Rest.Classes.ReportData[] reportDatas = queryUsageReport.report.reportdata[0]; // one filter machine '*' so get [0]
+            Task.WaitAll(new Task<JObject>[] { addUsageReport1, addUsageReport2 });
 
-            long[] time = queryUsageReport.report.timeslices;
+            Task<ReportResponse> queryUsageReport1 =  ags.QueryUsageReport(usageReport1);
+            Task<ReportResponse> queryUsageReport2 =  ags.QueryUsageReport(usageReport2);
+
+            Task.WaitAll(new Task<ReportResponse>[] { queryUsageReport1, queryUsageReport2 });
+
+            ArcGIS.Server.Rest.Classes.ReportData[] reportDatas1 = queryUsageReport1.Result.report.reportdata[0]; // one filter machine '*' so get [0]
+            ArcGIS.Server.Rest.Classes.ReportData[] reportDatas2 = queryUsageReport2.Result.report.reportdata[0]; // one filter machine '*' so get [0]
+
+            long[] time = queryUsageReport1.Result.report.timeslices;
             long numElement = time.LongCount();
 
             string[] header = Enum.GetNames(typeof(Header));
 
             List<ReportData> results = new List<ReportData>();
-            int cont = 0;
-            while (cont < reportDatas.LongLength)
+            int cont1 = 0;
+            int cont2 = 0;
+            while (cont1 < reportDatas1.LongLength)
             {
-                string nameService = reportDatas[cont].resourceURI;
+                string nameService = reportDatas1[cont1].resourceURI;
 
-                long?[] requestCount = reportDatas[cont++].data.Cast<long?>().ToArray();
+                long?[] requestCount = reportDatas1[cont1++].data.Cast<long?>().ToArray();
                 
-                long?[] requestsFailed = reportDatas[cont++].data.Cast<long?>().ToArray();
+                long?[] requestsFailed = reportDatas1[cont1++].data.Cast<long?>().ToArray();
                 
-                long?[] requestsTimedOut = reportDatas[cont++].data.Cast<long?>().ToArray();
+                long?[] requestsTimedOut = reportDatas1[cont1++].data.Cast<long?>().ToArray();
                 
-                double?[] requestMaxResponseTime = reportDatas[cont++].data.Cast<double?>().ToArray();
+                double?[] requestMaxResponseTime = reportDatas1[cont1++].data.Cast<double?>().ToArray();
                 
-                double?[] requestAvgResponseTime = reportDatas[cont++].data.Cast<double?>().ToArray();
+                double?[] requestAvgResponseTime = reportDatas1[cont1++].data.Cast<double?>().ToArray();
 
-                long?[] serviceRunningInstancesMax = reportDatas[cont++].data.Cast<long?>().ToArray();
+                long?[] serviceRunningInstancesMax = reportDatas2[cont2++].data.Cast<long?>().ToArray();
                 
                 for (long j = 0; j < numElement; j++)
                 {
@@ -351,7 +365,11 @@ namespace Studioat.ArcGISServer.UsageReports
 
             }
 
-            await ags.DeleteUsageReport(usageReport);
+            Task<JObject> deleteUsageReport1 = ags.DeleteUsageReport(usageReport1);
+            Task<JObject> deleteUsageReport2 = ags.DeleteUsageReport(usageReport2);
+
+            Task.WaitAll(new Task<JObject>[] { deleteUsageReport1, deleteUsageReport2 });
+
             return results;
         }
     }
