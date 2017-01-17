@@ -54,7 +54,7 @@ For details [Create Usage]
 ## Sample:
 ```
 //last day with interval 30 minutes
-Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis;http://myserver.cloudapp.net/arcgis -u siteadmin -p myPwd1 -o C:\Temp\OutputUsageReports
+Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis -u siteadmin -p myPwd1 -o C:\Temp\OutputUsageReports
 
 //two sites, last month with interval 60 minutes
 Studioat.ArcGISServer.UsageReports -s http://yourHostname:6080/arcgis;http://myserver.cloudapp.net/arcgis -u siteadmin;siteadmin -p myPwd1;myPwd2 -o C:\Temp\OutputUsageReports -a 60 -c LAST_MONTH
