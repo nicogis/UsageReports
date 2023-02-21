@@ -150,6 +150,8 @@ namespace Studioat.ArcGISServer.UsageReports
 
                 ServicePointManager.ServerCertificateValidationCallback = (sender, certificate, chain, sslPolicyErrors) => true;
 
+                ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+
                 var options = new Options();
 
                 Parser parser = new Parser();
